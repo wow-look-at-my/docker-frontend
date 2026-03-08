@@ -1,4 +1,5 @@
 FROM alpine:3.19 AS build
+RUN apk add --no-cache git
 ADD --chmod=755 https://github.com/wow-look-at-my/go-toolchain/releases/latest/download/go-toolchain_linux_amd64 /usr/local/bin/go-toolchain
 WORKDIR /src
 COPY . .
