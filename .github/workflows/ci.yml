@@ -50,16 +50,13 @@ jobs:
             type=ref,event=tag
 
       - name: Build Docker image
-        run: docker build -t docker-frontend:smoke .
+        run: |
+          chmod +x build/frontend
+          docker build -t docker-frontend:smoke .
 
       - name: Smoke test frontend
         run: |
-          cat <<'DOCKERFILE' > Dockerfile.smoke
-          # syntax=docker-frontend:smoke
-          FROM debian:bookworm-slim
-          APT install curl
-          RUN curl --version
-          DOCKERFILE
+          printf '%s\n' '# syntax=docker-frontend:smoke' 'FROM debian:bookworm-slim' 'APT install curl' 'RUN curl --version' > Dockerfile.smoke
           DOCKER_BUILDKIT=1 docker build -f Dockerfile.smoke --no-cache .
 
       - name: Push Docker image
