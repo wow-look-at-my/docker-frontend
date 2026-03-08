@@ -119,7 +119,7 @@ func handleFrom(r *Result, inst instructions.Instruction, currentStageName *stri
 
 func handleRun(r *Result, inst instructions.Instruction) {
 	cmd := strings.Join(inst.Args, " ")
-	r.State = r.State.Run(llb.Shlex(cmd)).Root()
+	r.State = r.State.Run(llb.Args([]string{"sh", "-c", cmd})).Root()
 }
 
 func handleAPT(r *Result, inst instructions.Instruction) error {
@@ -140,7 +140,7 @@ func handleAPT(r *Result, inst instructions.Instruction) error {
 
 	// Create the run with cache mounts for apt
 	r.State = r.State.Run(
-		llb.Shlex(cmd),
+		llb.Args([]string{"sh", "-c", cmd}),
 		llb.AddMount("/var/cache/apt", llb.Scratch(), llb.AsPersistentCacheDir("apt-cache", llb.CacheMountShared)),
 		llb.AddMount("/var/lib/apt", llb.Scratch(), llb.AsPersistentCacheDir("apt-lib", llb.CacheMountShared)),
 	).Root()
