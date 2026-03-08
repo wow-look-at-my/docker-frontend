@@ -2,6 +2,8 @@ package parser
 
 import (
 	"testing"
+	"github.com/wow-look-at-my/testify/assert"
+	"github.com/wow-look-at-my/testify/require"
 )
 
 func TestParseAPT(t *testing.T) {
@@ -9,26 +11,19 @@ func TestParseAPT(t *testing.T) {
 APT install curl ca-certificates
 `
 	insts, err := Parse(input)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(insts) != 2 {
-		t.Fatalf("expected 2 instructions, got %d", len(insts))
-	}
+	require.Nil(t, err)
+
+	require.Equal(t, 2, len(insts))
 
 	apt := insts[1]
-	if apt.Command != "APT" {
-		t.Errorf("expected command APT, got %s", apt.Command)
-	}
-	if len(apt.Args) != 3 {
-		t.Fatalf("expected 3 args (install, curl, ca-certificates), got %d: %v", len(apt.Args), apt.Args)
-	}
-	if apt.Args[0] != "install" {
-		t.Errorf("expected first arg 'install', got %s", apt.Args[0])
-	}
-	if apt.Args[1] != "curl" {
-		t.Errorf("expected second arg 'curl', got %s", apt.Args[1])
-	}
+	assert.Equal(t, "APT", apt.Command)
+
+	require.Equal(t, 3, len(apt.Args))
+
+	assert.Equal(t, "install", apt.Args[0])
+
+	assert.Equal(t, "curl", apt.Args[1])
+
 }
 
 func TestParseLineContinuation(t *testing.T) {
@@ -37,21 +32,17 @@ RUN echo hello \
     world
 `
 	insts, err := Parse(input)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(insts) != 2 {
-		t.Fatalf("expected 2 instructions, got %d", len(insts))
-	}
+	require.Nil(t, err)
+
+	require.Equal(t, 2, len(insts))
+
 	run := insts[1]
-	if run.Command != "RUN" {
-		t.Errorf("expected RUN, got %s", run.Command)
-	}
+	assert.Equal(t, "RUN", run.Command)
+
 	// After continuation joining, args should contain both parts
 	joined := joinArgs(run.Args)
-	if joined != "echo hello world" {
-		t.Errorf("expected 'echo hello world', got %q", joined)
-	}
+	assert.Equal(t, "echo hello world", joined)
+
 }
 
 func TestParseSkipsComments(t *testing.T) {
@@ -62,22 +53,18 @@ FROM alpine:3.19
 RUN echo hi
 `
 	insts, err := Parse(input)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(insts) != 2 {
-		t.Fatalf("expected 2 instructions, got %d", len(insts))
-	}
+	require.Nil(t, err)
+
+	require.Equal(t, 2, len(insts))
+
 }
 
 func TestParseEmptyInput(t *testing.T) {
 	insts, err := Parse("")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(insts) != 0 {
-		t.Fatalf("expected 0 instructions, got %d", len(insts))
-	}
+	require.Nil(t, err)
+
+	require.Equal(t, 0, len(insts))
+
 }
 
 func TestParseMultiStage(t *testing.T) {
@@ -88,17 +75,14 @@ COPY --from=builder /app /app
 CMD ["/app"]
 `
 	insts, err := Parse(input)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(insts) != 5 {
-		t.Fatalf("expected 5 instructions, got %d", len(insts))
-	}
+	require.Nil(t, err)
+
+	require.Equal(t, 5, len(insts))
+
 	// Check COPY --from flag
 	copyInst := insts[3]
-	if copyInst.Flags["from"] != "builder" {
-		t.Errorf("expected --from=builder flag, got %v", copyInst.Flags)
-	}
+	assert.Equal(t, "builder", copyInst.Flags["from"])
+
 }
 
 func TestParseUnknownInstruction(t *testing.T) {
@@ -106,9 +90,43 @@ func TestParseUnknownInstruction(t *testing.T) {
 FOOBAR something
 `
 	_, err := Parse(input)
-	if err == nil {
-		t.Fatal("expected error for unknown instruction, got nil")
-	}
+	require.NotNil(t, err)
+
+}
+
+func TestTokenizeQuotedStrings(t *testing.T) {
+	input := `FROM alpine:3.19
+LABEL "maintainer"="John Doe" 'version'='1.0'
+`
+	insts, err := Parse(input)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(insts))
+	assert.Equal(t, "LABEL", insts[1].Command)
+}
+
+func TestTokenizeEscapedQuote(t *testing.T) {
+	input := `FROM alpine:3.19
+RUN echo "hello \"world\""
+`
+	insts, err := Parse(input)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(insts))
+}
+
+func TestTokenizeBrackets(t *testing.T) {
+	input := `FROM alpine:3.19
+CMD ["echo", "hello world"]
+`
+	insts, err := Parse(input)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(insts))
+	// The JSON array should be kept as a single token
+	assert.Equal(t, 1, len(insts[1].Args))
+}
+
+func TestTokenizeTabSeparated(t *testing.T) {
+	tokens := tokenize("hello\tworld")
+	assert.Equal(t, 2, len(tokens))
 }
 
 func joinArgs(args []string) string {
