@@ -49,7 +49,7 @@ func build(ctx context.Context, c client.Client) (*client.Result, error) {
 		return nil, err
 	}
 
-	preprocessedDef, err := llb.Scratch().File(llb.Mkfile(filename, 0644, []byte(preprocessed))).Marshal(ctx)
+	preprocessedDef, err := llb.Scratch().File(llb.Mkfile("Dockerfile", 0644, []byte(preprocessed))).Marshal(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,8 @@ func build(ctx context.Context, c client.Client) (*client.Result, error) {
 	}
 
 	return c.Solve(ctx, client.SolveRequest{
-		Frontend: "dockerfile.v0",
+		Frontend:    "dockerfile.v0",
+		FrontendOpt: map[string]string{"filename": "Dockerfile"},
 		FrontendInputs: map[string]*pb.Definition{
 			"dockerfile": preprocessedDef.ToPB(),
 			"context":    buildContextDef.ToPB(),
