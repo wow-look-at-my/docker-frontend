@@ -60,8 +60,11 @@ func build(ctx context.Context, c client.Client) (*client.Result, error) {
 	}
 
 	return c.Solve(ctx, client.SolveRequest{
-		Frontend:    "dockerfile.v0",
-		FrontendOpt: map[string]string{"filename": "Dockerfile"},
+		Frontend: "gateway.v0",
+		FrontendOpt: map[string]string{
+			"source":   "docker/dockerfile:1",
+			"filename": "Dockerfile",
+		},
 		FrontendInputs: map[string]*pb.Definition{
 			"dockerfile": preprocessedDef.ToPB(),
 			"context":    buildContextDef.ToPB(),
