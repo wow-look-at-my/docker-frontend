@@ -62,9 +62,8 @@ CMD ["--config", "/etc/app/config.yaml"]
 
 	lines := strings.Split(result, "\n")
 
-	// Comments preserved
-	assert.Equal(t, "# syntax=wow-look-at-my/docker-frontend", lines[0])
-	assert.Equal(t, "# Build stage", lines[1])
+	// Syntax directive stripped, other comments preserved
+	assert.Equal(t, "# Build stage", lines[0])
 
 	// All standard instructions pass through verbatim
 	for _, want := range []string{

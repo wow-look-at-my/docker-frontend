@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"maps"
-	"strings"
 
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/builder"
@@ -52,9 +51,6 @@ func build(ctx context.Context, c client.Client) (*client.Result, error) {
 		return nil, err
 	}
 
-	// Strip the # syntax= directive so the builder doesn't try to forward
-	preprocessed = stripSyntaxDirective(preprocessed)
-
 	// Create an LLB state containing the preprocessed Dockerfile
 	dockerfileSt := llb.Scratch().File(llb.Mkfile("Dockerfile", 0644, []byte(preprocessed)))
 
@@ -64,18 +60,6 @@ func build(ctx context.Context, c client.Client) (*client.Result, error) {
 		Client:       c,
 		dockerfileSt: dockerfileSt,
 	})
-}
-
-// stripSyntaxDirective removes the # syntax= line from Dockerfile content.
-func stripSyntaxDirective(content string) string {
-	lines := strings.SplitN(content, "\n", 2)
-	if len(lines) > 0 && strings.HasPrefix(strings.TrimSpace(strings.ToLower(lines[0])), "# syntax=") {
-		if len(lines) > 1 {
-			return lines[1]
-		}
-		return ""
-	}
-	return content
 }
 
 // clientWithPreprocessed wraps a gateway client to inject preprocessed

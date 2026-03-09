@@ -6,9 +6,9 @@ import (
 )
 
 // Preprocess takes raw Dockerfile content and expands custom instructions
-// (like APT) into standard Dockerfile syntax. All standard Dockerfile
-// instructions are passed through unchanged so that BuildKit's built-in
-// dockerfile frontend handles them.
+// (like APT) into standard Dockerfile syntax. It also strips any # syntax=
+// directive so the output can be fed directly to the standard dockerfile
+// builder. All standard Dockerfile instructions are passed through unchanged.
 func Preprocess(content string) (string, error) {
 	lines := strings.Split(content, "\n")
 	var out []string
@@ -17,9 +17,11 @@ func Preprocess(content string) (string, error) {
 	for i < len(lines) {
 		line := strings.TrimSpace(lines[i])
 
-		// Pass through empty lines and comments unchanged
+		// Pass through empty lines and comments, but strip # syntax= directive
 		if line == "" || strings.HasPrefix(line, "#") {
-			out = append(out, lines[i])
+			if !strings.HasPrefix(strings.ToLower(line), "# syntax=") {
+				out = append(out, lines[i])
+			}
 			i++
 			continue
 		}
