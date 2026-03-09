@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"log"
+	"maps"
+	"strings"
 
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/frontend/gateway/grpcclient"
+	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/util/appcontext"
-	pb "github.com/moby/buildkit/solver/pb"
 	"github.com/wow-look-at-my/docker-frontend/pkg/converter"
 )
 
@@ -49,25 +52,53 @@ func build(ctx context.Context, c client.Client) (*client.Result, error) {
 		return nil, err
 	}
 
-	preprocessedDef, err := llb.Scratch().File(llb.Mkfile("Dockerfile", 0644, []byte(preprocessed))).Marshal(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// Strip the # syntax= directive so the builder doesn't try to forward
+	preprocessed = stripSyntaxDirective(preprocessed)
 
-	buildContextDef, err := llb.Local("context", llb.SharedKeyHint("dockerfile-frontend")).Marshal(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// Create an LLB state containing the preprocessed Dockerfile
+	dockerfileSt := llb.Scratch().File(llb.Mkfile("Dockerfile", 0644, []byte(preprocessed)))
 
-	return c.Solve(ctx, client.SolveRequest{
-		Frontend: "gateway.v0",
-		FrontendOpt: map[string]string{
-			"source":   "docker/dockerfile:1",
-			"filename": "Dockerfile",
-		},
-		FrontendInputs: map[string]*pb.Definition{
-			"dockerfile": preprocessedDef.ToPB(),
-			"context":    buildContextDef.ToPB(),
-		},
+	// Delegate to the standard dockerfile builder, providing preprocessed
+	// content via a client wrapper that injects it as a frontend input
+	return builder.Build(ctx, &clientWithPreprocessed{
+		Client:       c,
+		dockerfileSt: dockerfileSt,
 	})
+}
+
+// stripSyntaxDirective removes the # syntax= line from Dockerfile content.
+func stripSyntaxDirective(content string) string {
+	lines := strings.SplitN(content, "\n", 2)
+	if len(lines) > 0 && strings.HasPrefix(strings.TrimSpace(strings.ToLower(lines[0])), "# syntax=") {
+		if len(lines) > 1 {
+			return lines[1]
+		}
+		return ""
+	}
+	return content
+}
+
+// clientWithPreprocessed wraps a gateway client to inject preprocessed
+// Dockerfile content via the Inputs method, avoiding FrontendInputs which
+// is not supported by all BuildKit daemon versions.
+type clientWithPreprocessed struct {
+	client.Client
+	dockerfileSt llb.State
+}
+
+func (c *clientWithPreprocessed) BuildOpts() client.BuildOpts {
+	opts := c.Client.BuildOpts()
+	// Advertise frontend inputs capability so the dockerfile builder
+	// reads from our injected inputs instead of the local source
+	opts.Caps = gwpb.Caps.CapSet(gwpb.Caps.All())
+	// Override filename since our preprocessed input uses "Dockerfile"
+	opts.Opts = maps.Clone(opts.Opts)
+	opts.Opts["filename"] = "Dockerfile"
+	return opts
+}
+
+func (c *clientWithPreprocessed) Inputs(ctx context.Context) (map[string]llb.State, error) {
+	return map[string]llb.State{
+		"dockerfile": c.dockerfileSt,
+	}, nil
 }
