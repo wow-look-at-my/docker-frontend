@@ -3,13 +3,19 @@ name: CI
 on:
   push:
 
+permissions:
+  id-token: write
+  contents: write
+  actions: read
+  checks: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: wow-look-at-my/go-toolchain@latest
+      - uses: wow-look-at-my/go-toolchain@v1
         env:
           CGO_ENABLED: "0"
 
