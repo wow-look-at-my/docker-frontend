@@ -3,20 +3,28 @@ name: CI
 on:
   push:
 
+# go-toolchain@v1 needs all six; each is a hard failure, not a warning.
+# A job-level permissions block REPLACES this one -- see docs/ci.md.
+permissions:
+  id-token: write
+  contents: write
+  actions: read
+  checks: read
+  deployments: write
+  artifact-metadata: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: wow-look-at-my/go-toolchain@latest
+      - uses: wow-look-at-my/go-toolchain@v1
         env:
           CGO_ENABLED: "0"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend
-          path: build/frontend
+      # No artifact upload: go-toolchain hands build/ to later jobs through the
+      # org cache transport, and Actions artifact storage is out of quota.
 
   docker:
     needs: build-and-test
@@ -24,13 +32,20 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # cache-download reads this run's hand-off listing.
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      # Two hand-offs are saved per run, so nameless discovery won't choose.
+      - uses: wow-look-at-my/actions@cache-download#latest
         with:
-          name: frontend
+          name: go-build-build-and-test
           path: build
+
+      # Artifacts are <binary>_<os>_<arch>; the Dockerfile COPYs a bare name.
+      - name: Name the binary for the Dockerfile
+        run: mv build/frontend_linux_amd64 build/frontend
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -51,9 +66,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build Docker image
-        run: |
-          chmod +x build/frontend
-          docker build -t docker-frontend:smoke .
+        run: docker build -t docker-frontend:smoke .
 
       - name: Smoke test frontend
         run: |
