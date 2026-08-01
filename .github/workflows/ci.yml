@@ -26,10 +26,11 @@ jobs:
         env:
           CGO_ENABLED: "0"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend
-          path: build/frontend
+      # go-toolchain@v1 already hands off its build/ outputs through the org
+      # cache transport on every run, so nothing extra is uploaded here. The
+      # GitHub artifact this used to upload reported success and then could not
+      # be downloaded -- the org's Actions artifact storage is exhausted, which
+      # is why every repo here moved to the cache hand-off.
 
   docker:
     needs: build-and-test
@@ -37,12 +38,14 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # cache-download reads this run's hand-off listing.
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - uses: wow-look-at-my/actions@cache-download#latest
         with:
-          name: frontend
+          name: go-build
           path: build
 
       - name: Log in to GitHub Container Registry
