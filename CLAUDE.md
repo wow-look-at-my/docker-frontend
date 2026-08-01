@@ -6,7 +6,7 @@ Custom Docker BuildKit frontend ("Dockerbetter") — a Go binary that acts as a 
 
 ## Build & Test
 
-- **CI uses `wow-look-at-my/go-toolchain@latest`** — do NOT use raw `go build`/`go test`/`go vet` in GitHub Actions. Always use the go-toolchain action.
+- **CI uses `wow-look-at-my/go-toolchain@v1`** — do NOT use raw `go build`/`go test`/`go vet` in GitHub Actions. Always use the go-toolchain action.
 - Local dev: `go build ./...`, `go test ./...`, `go vet ./...`
 - Docker image: `docker build -t docker-frontend .`
 

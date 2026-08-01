@@ -3,13 +3,26 @@ name: CI
 on:
   push:
 
+# go-toolchain@v1 requirements. contents: write is the dependency-graph
+# submission (403 without it); actions/checks read feed its no-all-builds
+# guard; deployments + artifact-metadata are the GitHub Deployment and
+# storage record its buildhost autorelease posts as part of publishing.
+# All are hard failures, and a job-level block REPLACES this one.
+permissions:
+  id-token: write
+  contents: write
+  actions: read
+  checks: read
+  deployments: write
+  artifact-metadata: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: wow-look-at-my/go-toolchain@latest
+      - uses: wow-look-at-my/go-toolchain@v1
         env:
           CGO_ENABLED: "0"
 
