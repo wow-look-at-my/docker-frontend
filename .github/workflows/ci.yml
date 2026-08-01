@@ -53,8 +53,15 @@ jobs:
           name: go-build-build-and-test
           path: build
 
-      - name: Show what was restored
-        run: ls -la build/
+      # go-toolchain's hand-off carries the whole build matrix under
+      # per-platform names (frontend_linux_amd64, frontend_darwin_arm64, ...).
+      # The old artifact upload named one file `frontend`, which is what the
+      # Dockerfile COPYs, so pick the image's platform out of the matrix.
+      - name: Stage the linux/amd64 binary
+        run: |
+          ls -la build/
+          mv build/frontend_linux_amd64 build/frontend
+          chmod +x build/frontend
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -75,9 +82,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build Docker image
-        run: |
-          chmod +x build/frontend
-          docker build -t docker-frontend:smoke .
+        run: docker build -t docker-frontend:smoke .
 
       - name: Smoke test frontend
         run: |
