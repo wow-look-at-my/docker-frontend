@@ -16,7 +16,8 @@ Custom Docker BuildKit frontend ("Dockerbetter") — a Go binary that acts as a 
 - `pkg/parser/` — Dockerfile DSL parser
 - `pkg/builder/` — BuildKit build function (reads entrypoint, orchestrates parse + convert)
 - `pkg/converter/` — converts parsed AST into LLB state chains
-- `Dockerfile` — builds the frontend image (two-stage: golang builder → alpine runtime)
+- `Dockerfile` — the frontend image: `FROM scratch` over a prebuilt `build/frontend`, so CI stages that file before `docker build`
+- `docs/ci.md` — the workflow's six permissions, the `@v1` pin, the cache hand-off, and why this binary is not an APE
 
 ## Key Dependencies
 

@@ -3,11 +3,8 @@ name: CI
 on:
   push:
 
-# go-toolchain@v1 requirements. contents: write is the dependency-graph
-# submission (403 without it); actions/checks read feed its no-all-builds
-# guard; deployments + artifact-metadata are the GitHub Deployment and
-# storage record its buildhost autorelease posts as part of publishing.
-# All are hard failures, and a job-level block REPLACES this one.
+# go-toolchain@v1 needs all six; each is a hard failure, not a warning.
+# A job-level permissions block REPLACES this one -- see docs/ci.md.
 permissions:
   id-token: write
   contents: write
@@ -26,11 +23,8 @@ jobs:
         env:
           CGO_ENABLED: "0"
 
-      # go-toolchain@v1 already hands off its build/ outputs through the org
-      # cache transport on every run, so nothing extra is uploaded here. The
-      # GitHub artifact this used to upload reported success and then could not
-      # be downloaded -- the org's Actions artifact storage is exhausted, which
-      # is why every repo here moved to the cache hand-off.
+      # No artifact upload: go-toolchain hands build/ to later jobs through the
+      # org cache transport, and Actions artifact storage is out of quota.
 
   docker:
     needs: build-and-test
@@ -43,25 +37,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # go-toolchain saves TWO hand-offs per run -- the bare `go-build` and a
-      # job-scoped `go-build-<job>` -- so nameless self-discovery refuses to
-      # guess between them. Naming the job-scoped one is an exact key match
-      # against this run and this job, with no prefix fallback that could
-      # reach an earlier run's entry.
+      # Two hand-offs are saved per run, so nameless discovery won't choose.
       - uses: wow-look-at-my/actions@cache-download#latest
         with:
           name: go-build-build-and-test
           path: build
 
-      # go-toolchain's hand-off carries the whole build matrix under
-      # per-platform names (frontend_linux_amd64, frontend_darwin_arm64, ...).
-      # The old artifact upload named one file `frontend`, which is what the
-      # Dockerfile COPYs, so pick the image's platform out of the matrix.
-      - name: Stage the linux/amd64 binary
-        run: |
-          ls -la build/
-          mv build/frontend_linux_amd64 build/frontend
-          chmod +x build/frontend
+      # Artifacts are <binary>_<os>_<arch>; the Dockerfile COPYs a bare name.
+      - name: Name the binary for the Dockerfile
+        run: mv build/frontend_linux_amd64 build/frontend
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
