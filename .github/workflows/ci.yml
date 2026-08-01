@@ -43,12 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Nameless: go-toolchain deprecated the bare `go-build` hand-off name in
-      # favour of self-discovery, and asking for it by name matched a PREVIOUS
-      # run's entry (cache-xfer-<older run id>-go-build-1) whose build/ did not
-      # hold this binary. Discovery is scoped to this run's key prefix.
+      # go-toolchain saves TWO hand-offs per run -- the bare `go-build` and a
+      # job-scoped `go-build-<job>` -- so nameless self-discovery refuses to
+      # guess between them. Naming the job-scoped one is an exact key match
+      # against this run and this job, with no prefix fallback that could
+      # reach an earlier run's entry.
       - uses: wow-look-at-my/actions@cache-download#latest
         with:
+          name: go-build-build-and-test
           path: build
 
       - name: Show what was restored
