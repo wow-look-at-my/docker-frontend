@@ -43,10 +43,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Nameless: go-toolchain deprecated the bare `go-build` hand-off name in
+      # favour of self-discovery, and asking for it by name matched a PREVIOUS
+      # run's entry (cache-xfer-<older run id>-go-build-1) whose build/ did not
+      # hold this binary. Discovery is scoped to this run's key prefix.
       - uses: wow-look-at-my/actions@cache-download#latest
         with:
-          name: go-build
           path: build
+
+      - name: Show what was restored
+        run: ls -la build/
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
